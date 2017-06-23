@@ -1,6 +1,8 @@
 
 # React Native Camera [![Backers on Open Collective](https://opencollective.com/react-native-camera/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/react-native-camera/sponsors/badge.svg)](#sponsors) [![npm version](https://badge.fury.io/js/react-native-camera.svg)](http://badge.fury.io/js/react-native-camera) [![Gitter](https://badges.gitter.im/lwansbrough/react-native-camera.svg)](https://gitter.im/lwansbrough/react-native-camera)
 
+### this is a merge of our type/device checking and @banandelfiner's framerate functions
+
 The comprehensive camera module for React Native. Including photographs, videos, and barcode scanning!
 
 ### Contributing
