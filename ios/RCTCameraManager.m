@@ -1030,4 +1030,65 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
     #endif
 }
 
+// thanks @banandelfiner
+
+RCT_EXPORT_METHOD(setFrameRate:(int)fps resolve:(RCTPromiseResolveBlock)resolve  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+    #if TARGET_IPHONE_SIMULATOR
+        return;
+    #endif
+
+    dispatch_async(self.sessionQueue, ^{
+
+        CGFloat desiredFPS = (CGFloat)fps;
+        BOOL isRunning = self.session.isRunning;
+
+        if (isRunning)  [self.session stopRunning];
+
+        AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        AVCaptureDeviceFormat *selectedFormat = nil;
+        int32_t maxWidth = 0;
+        AVFrameRateRange *frameRateRange = nil;
+
+        for (AVCaptureDeviceFormat *format in [videoDevice formats]) {
+
+            for (AVFrameRateRange *range in format.videoSupportedFrameRateRanges) {
+
+                CMFormatDescriptionRef desc = format.formatDescription;
+                CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(desc);
+                int32_t width = dimensions.width;
+
+                if (range.minFrameRate <= desiredFPS && desiredFPS <= range.maxFrameRate && width >= maxWidth) {
+
+                    selectedFormat = format;
+                    frameRateRange = range;
+                    maxWidth = width;
+                }
+            }
+        }
+
+        if (selectedFormat) {
+
+            if ([videoDevice lockForConfiguration:nil]) {
+
+                //NSLog(@"selected format:%@", selectedFormat);
+                videoDevice.activeFormat = selectedFormat;
+                videoDevice.activeVideoMinFrameDuration = CMTimeMake(1, (int32_t)desiredFPS);
+                videoDevice.activeVideoMaxFrameDuration = CMTimeMake(1, (int32_t)desiredFPS);
+                [videoDevice unlockForConfiguration];
+            }
+        }
+        if (isRunning) [self.session startRunning];
+        resolve(@"");
+    });
+}
+
+RCT_EXPORT_METHOD(getFrameRate:(RCTPromiseResolveBlock)resolve  reject:(__unused RCTPromiseRejectBlock)reject) {
+     dispatch_async(self.sessionQueue, ^{
+         AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+         int32_t min = videoDevice.activeVideoMaxFrameDuration.timescale;
+         resolve(@(min));
+     });
+}
+
 @end

@@ -246,6 +246,24 @@ export default class Camera extends Component {
   getFOV() {
     return CameraManager.getFOV();
   }
+  
+  setFrameRate(fps) {
+      if (Platform.OS === 'ios') {
+          if (!Number.isNaN(Number(fps))) {
+              return CameraManager.setFrameRate(Number(fps));
+          }
+      }
+
+      return null;
+  }
+
+  getFrameRate() {
+      if (Platform.OS === 'ios') {
+          return CameraManager.getFrameRate();
+      }
+
+      return null;
+  }
 
   hasFlash() {
     if (Platform.OS === 'android') {
