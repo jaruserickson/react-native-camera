@@ -759,12 +759,14 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
   if (totalSeconds > -1) {
     int32_t preferredTimeScale = [[options valueForKey:@"preferredTimeScale"] intValue];
     CMTime maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimeScale);
+      // NOTE: we can use this directly NOTE - usse the actal recorded time of video.
     self.movieFileOutput.maxRecordedDuration = maxDuration;
   }
 
   dispatch_async(self.sessionQueue, ^{
     [[self.movieFileOutput connectionWithMediaType:AVMediaTypeVideo] setVideoOrientation:orientation];
-
+      
+      // NOTE: just use this FILEPATH directly, cuss otherwise its laggy bullshit.
     //Create temporary URL to record to
     NSString *outputPath = [[NSString alloc] initWithFormat:@"%@%@", NSTemporaryDirectory(), @"output.mov"];
     NSURL *outputURL = [[NSURL alloc] initFileURLWithPath:outputPath];
@@ -803,7 +805,8 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
     self.videoReject(RCTErrorUnspecified, nil, RCTErrorWithMessage(@"Error while recording"));
     return;
   }
-
+    
+    // bypass file save stuff here and just do what you want with the asset
   AVURLAsset* videoAsAsset = [AVURLAsset URLAssetWithURL:outputFileURL options:nil];
   AVAssetTrack* videoTrack = [[videoAsAsset tracksWithMediaType:AVMediaTypeVideo] objectAtIndex:0];
   float videoWidth;
@@ -821,14 +824,18 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
     videoWidth = videoSize.height;
     videoHeight = videoSize.width;
   }
-
+    
   NSMutableDictionary *videoInfo = [NSMutableDictionary dictionaryWithDictionary:@{
      @"duration":[NSNumber numberWithFloat:CMTimeGetSeconds(videoAsAsset.duration)],
      @"width":[NSNumber numberWithFloat:videoWidth],
      @"height":[NSNumber numberWithFloat:videoHeight],
      @"size":[NSNumber numberWithLongLong:captureOutput.recordedFileSize],
+     @"fps":[NSNumber numberWithLongLong:captureOutput.recordedFileSize],
   }];
-
+    
+    AVCaptureDevice *device = [self.videoCaptureDeviceInput device];
+    int32_t min = device.activeVideoMaxFrameDuration.timescale;
+    self.videoResolve(@(min));
   if (self.videoTarget == RCTCameraCaptureTargetCameraRoll) {
     ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
     if ([library videoAtPathIsCompatibleWithSavedPhotosAlbum:outputFileURL]) {
@@ -1030,8 +1037,37 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
     #endif
 }
 
-// thanks @banandelfiner
+// TODO aws upload https://stackoverflow.com/questions/39696264/i-want-to-upload-video-files-to-s3-buckets-from-iphone-using-ios-sdk
+// this method sets the camera frame rate to the max available for the device
+// https://gist.github.com/johnnyclem/8608904
+RCT_EXPORT_METHOD(configureCameraForHighestFrameRate:(RCTPromiseResolveBlock)resolve  reject:(__unused RCTPromiseRejectBlock)reject)
+{
+    AVCaptureDevice *device = [self.videoCaptureDeviceInput device];
+    AVCaptureDeviceFormat *bestFormat = nil;
+    AVFrameRateRange *bestFrameRateRange = nil;
+    for ( AVCaptureDeviceFormat *format in [device formats] ) {
+        for ( AVFrameRateRange *range in format.videoSupportedFrameRateRanges ) {
+            if ( range.maxFrameRate > bestFrameRateRange.maxFrameRate ) {
+                bestFormat = format;
+                bestFrameRateRange = range;
+            }
+        }
+    }
+    
+    if ( bestFormat ) {
+        if ( [device lockForConfiguration:NULL] == YES ) {
+            device.activeFormat = bestFormat;
+            device.activeVideoMinFrameDuration = bestFrameRateRange.minFrameDuration;
+            device.activeVideoMaxFrameDuration = bestFrameRateRange.minFrameDuration;
+            [device unlockForConfiguration];
+        }
+    }
+    
+    int32_t min = device.activeVideoMaxFrameDuration.timescale;
+    resolve(@(min));
+}
 
+// thanks @banandelfiner
 RCT_EXPORT_METHOD(setFrameRate:(int)fps resolve:(RCTPromiseResolveBlock)resolve  reject:(__unused RCTPromiseRejectBlock)reject)
 {
     #if TARGET_IPHONE_SIMULATOR
