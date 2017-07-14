@@ -193,11 +193,30 @@ RCT_CUSTOM_VIEW_PROPERTY(type, NSInteger, RCTCamera) {
       AVCaptureDevice *currentCaptureDevice = [self.videoCaptureDeviceInput device];
       AVCaptureDevicePosition position = (AVCaptureDevicePosition)type;
       AVCaptureDevice *captureDevice = [self deviceWithMediaType:AVMediaTypeVideo preferringPosition:(AVCaptureDevicePosition)position];
-
+      
       if (captureDevice == nil) {
         return;
       }
-
+        
+    AVCaptureDeviceFormat *bestFormat = nil;
+    AVFrameRateRange *bestFrameRateRange = nil;
+    for ( AVCaptureDeviceFormat *format in [captureDevice formats] ) {
+        for ( AVFrameRateRange *range in format.videoSupportedFrameRateRanges ) {
+            if ( range.maxFrameRate > bestFrameRateRange.maxFrameRate ) {
+                bestFormat = format;
+                bestFrameRateRange = range;
+            }
+        }
+    }
+    
+    if ( bestFormat ) {
+        if ( [captureDevice lockForConfiguration:NULL] == YES ) {
+            captureDevice.activeFormat = bestFormat;
+            captureDevice.activeVideoMinFrameDuration = bestFrameRateRange.minFrameDuration;
+            captureDevice.activeVideoMaxFrameDuration = bestFrameRateRange.minFrameDuration;
+            [captureDevice unlockForConfiguration];
+        }
+    }
       self.presetCamera = type;
 
       NSError *error = nil;
@@ -765,8 +784,8 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
 
   dispatch_async(self.sessionQueue, ^{
     [[self.movieFileOutput connectionWithMediaType:AVMediaTypeVideo] setVideoOrientation:orientation];
-      
-      // NOTE: just use this FILEPATH directly, cuss otherwise its laggy bullshit.
+    
+    // NOTE: just use this FILEPATH directly, cuss otherwise its laggy bullshit.
     //Create temporary URL to record to
     NSString *outputPath = [[NSString alloc] initWithFormat:@"%@%@", NSTemporaryDirectory(), @"output.mov"];
     NSURL *outputURL = [[NSURL alloc] initFileURLWithPath:outputPath];
@@ -830,12 +849,10 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
      @"width":[NSNumber numberWithFloat:videoWidth],
      @"height":[NSNumber numberWithFloat:videoHeight],
      @"size":[NSNumber numberWithLongLong:captureOutput.recordedFileSize],
-     @"fps":[NSNumber numberWithLongLong:captureOutput.recordedFileSize],
+
+     @"fps":[NSNumber numberWithFloat:videoTrack.nominalFrameRate]
   }];
     
-    AVCaptureDevice *device = [self.videoCaptureDeviceInput device];
-    int32_t min = device.activeVideoMaxFrameDuration.timescale;
-    self.videoResolve(@(min));
   if (self.videoTarget == RCTCameraCaptureTargetCameraRoll) {
     ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
     if ([library videoAtPathIsCompatibleWithSavedPhotosAlbum:outputFileURL]) {
@@ -1042,7 +1059,18 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
 // https://gist.github.com/johnnyclem/8608904
 RCT_EXPORT_METHOD(configureCameraForHighestFrameRate:(RCTPromiseResolveBlock)resolve  reject:(__unused RCTPromiseRejectBlock)reject)
 {
-    AVCaptureDevice *device = [self.videoCaptureDeviceInput device];
+#if TARGET_IPHONE_SIMULATOR
+    resolve(@(24));
+    return;
+#endif
+    dispatch_async(self.sessionQueue, ^{
+        
+        BOOL isRunning = self.session.isRunning;
+        
+        if (isRunning)  [self.session stopRunning];
+        
+    AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        
     AVCaptureDeviceFormat *bestFormat = nil;
     AVFrameRateRange *bestFrameRateRange = nil;
     for ( AVCaptureDeviceFormat *format in [device formats] ) {
@@ -1063,8 +1091,10 @@ RCT_EXPORT_METHOD(configureCameraForHighestFrameRate:(RCTPromiseResolveBlock)res
         }
     }
     
-    int32_t min = device.activeVideoMaxFrameDuration.timescale;
-    resolve(@(min));
+        int32_t min = device.activeVideoMaxFrameDuration.timescale;
+        if (isRunning) [self.session startRunning];
+        resolve(@(min));
+    });
 }
 
 // thanks @banandelfiner
