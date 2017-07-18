@@ -658,6 +658,19 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         }
     }
 
+
+    @ReactMethod
+    public void getFrameRate(final ReadableMap options, final Promise promise){
+        Camera camera = RCTCamera.getInstance().acquireCameraInstance(options.getInt("type"));
+        if (null == camera) {
+            promise.reject("No camera found.");
+            return;
+        }
+        int framerate = camera.getParameters().getPreviewFrameRate();
+        promise.resolve(framerate);
+    }
+
+
     @ReactMethod
     public void hasFlash(ReadableMap options, final Promise promise) {
         Camera camera = RCTCamera.getInstance().acquireCameraInstance(options.getInt("type"));

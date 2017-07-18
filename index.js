@@ -42,7 +42,7 @@ function convertNativeProps(props) {
   if (typeof props.captureMode === 'string') {
     newProps.captureMode = Camera.constants.CaptureMode[props.captureMode];
   }
-  
+
   if (typeof props.captureTarget === 'string') {
     newProps.captureTarget = Camera.constants.CaptureTarget[props.captureTarget];
   }
@@ -246,7 +246,7 @@ export default class Camera extends Component {
   getFOV() {
     return CameraManager.getFOV();
   }
-  
+
   setFrameRate(fps) {
       if (Platform.OS === 'ios') {
           if (!Number.isNaN(Number(fps))) {
@@ -261,6 +261,12 @@ export default class Camera extends Component {
       if (Platform.OS === 'ios') {
           return CameraManager.getFrameRate();
       }
+        else if (Platform.OS === 'android') {
+            const props = convertNativeProps(this.props);
+            return CameraManager.getFrameRate({
+              type: props.type
+            });
+        }
 
       return null;
   }
