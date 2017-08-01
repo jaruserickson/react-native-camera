@@ -659,6 +659,25 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
     }
 
 
+
+    @ReactMethod
+    public void setMaxFrameRate(final ReadableMap options){
+        Camera camera = RCTCamera.getInstance().acquireCameraInstance(options.getInt("type"));
+        if (null == camera) {
+           // promise.reject("No camera found.");
+            return;
+        }
+        //List<int[]> frameRanges = camera.getParameters().getSupportedPreviewFpsRange();
+
+       // int maxFrameRate = frameRanges.get(frameRanges.size()-1)[1];
+
+        //camera.getParameters().setPreviewFpsRange(maxFrameRate,maxFrameRate);
+        camera.getParameters().setPreviewFpsRange(120000,120000);
+
+
+        //promise.resolve(framerate);
+    }
+
     @ReactMethod
     public void getFrameRate(final ReadableMap options, final Promise promise){
         Camera camera = RCTCamera.getInstance().acquireCameraInstance(options.getInt("type"));
