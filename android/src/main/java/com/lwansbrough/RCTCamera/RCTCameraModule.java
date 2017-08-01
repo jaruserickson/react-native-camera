@@ -672,7 +672,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
        // int maxFrameRate = frameRanges.get(frameRanges.size()-1)[1];
 
         //camera.getParameters().setPreviewFpsRange(maxFrameRate,maxFrameRate);
-        camera.getParameters().setPreviewFpsRange(120,120);
+        camera.getParameters().setPreviewFpsRange(120000,120000);
 
 
         //promise.resolve(framerate);
