@@ -254,12 +254,12 @@ export default class Camera extends Component {
               return CameraManager.setFrameRate(Number(fps));
           }
       }
-      else if (Platform.OS === 'android') {
-            const props = convertNativeProps(this.props);
-            return CameraManager.setMaxFrameRate({
-              type: props.type
-            });
-        }
+      // else if (Platform.OS === 'android') {
+      //       const props = convertNativeProps(this.props);
+      //       return CameraManager.setMaxFrameRate({
+      //         type: props.type
+      //       });
+      //   }
 
       return null;
   }
