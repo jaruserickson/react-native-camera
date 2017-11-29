@@ -7,6 +7,9 @@ package com.lwansbrough.RCTCamera;
 
 import android.content.ContentValues;
 import android.hardware.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraCharacteristics;
 import android.media.*;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -14,7 +17,9 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
+import android.util.Range;
 import android.view.Surface;
+import android.content.Context;
 
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
@@ -280,6 +285,10 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
         // Set camera.
         mMediaRecorder.setCamera(mCamera);
+
+        // Set FPS
+        Double fps = getCamera2FrameRate();
+        Log.i("FrameRate", Double.toString(fps));
 
         // Set AV sources.
         mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
@@ -754,6 +763,21 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
     private void addToMediaStore(String path) {
         MediaScannerConnection.scanFile(_reactContext, new String[] { path }, null, null);
+    }
+
+    private double getCamera2FrameRate() {
+        CameraManager manager = (CameraManager) _reactContext.getSystemService(Context.CAMERA_SERVICE);
+        try{
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            Range<Integer>[] fpsRanges = characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            double fps = fpsRanges[fpsRanges.length - 1].getUpper().doubleValue();
+            return fps;
+        }catch(CameraAccessException e) {
+            e.printStackTrace();
+        }
+        double value = 30;
+        return value;
     }
 
     /**
